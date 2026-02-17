@@ -1,73 +1,96 @@
-# 💸 Expense Tracker
+# 💸 Expense Tracker — Multi-User
 
-A personal daily expense tracker with auto-categorization, income tracking, and a live dashboard.
+A personal finance tracker with **login, cloud storage, and per-user data** powered by Supabase + Vercel.
 
 ---
 
-## 🚀 Deploy to Vercel in 5 minutes
+## 🚀 Setup Guide (15 minutes, all free)
 
-### Step 1 — Create a GitHub account (if you don't have one)
-Go to https://github.com and sign up for free.
+### PART 1 — Supabase (your database + login)
 
-### Step 2 — Create a new GitHub repository
-1. Click the **+** icon in the top-right → **New repository**
-2. Name it: `expense-tracker`
-3. Keep it **Public** (or Private — both work)
-4. Click **Create repository**
+**Step 1 — Create a free Supabase account**
+Go to https://supabase.com → Sign up → Create a new project
+- Give it any name (e.g. "expense-tracker")
+- Choose a strong database password (save it somewhere)
+- Pick the region closest to you
+- Wait ~2 minutes for it to set up
 
-### Step 3 — Upload the project files
-On the repository page, click **uploading an existing file** (or drag and drop):
-- Upload ALL the files from this ZIP, keeping the folder structure:
-  ```
-  expense-tracker/
-  ├── index.html
-  ├── package.json
-  ├── vite.config.js
-  ├── .gitignore
-  └── src/
-      ├── main.jsx
-      ├── App.jsx
-      └── index.css
-  ```
-- Click **Commit changes**
+**Step 2 — Create the transactions table**
+In your Supabase project, click **SQL Editor** in the left sidebar, paste this, and click **Run**:
 
-### Step 4 — Deploy on Vercel
-1. Go to https://vercel.com and sign up with your GitHub account
-2. Click **Add New → Project**
-3. Find and select your `expense-tracker` repository
-4. Vercel auto-detects it as a Vite/React app — no changes needed
-5. Click **Deploy**
+```sql
+create table transactions (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  date date not null,
+  description text not null,
+  amount numeric(10,2) not null,
+  type text not null check (type in ('income','expense')),
+  category text not null,
+  created_at timestamptz default now()
+);
 
-✅ In about 60 seconds, Vercel gives you a live URL like:
+-- Each user can only see and edit their own transactions
+alter table transactions enable row level security;
+
+create policy "Users can manage their own transactions"
+  on transactions for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+
+**Step 3 — Get your API keys**
+In Supabase, go to **Settings → API** and copy:
+- **Project URL** (looks like https://xxxx.supabase.co)
+- **anon public key** (long string starting with "eyJ...")
+
+---
+
+### PART 2 — GitHub
+
+**Step 4 — Upload files to GitHub**
+Create a new repo and upload ALL files from this ZIP individually (not the folder):
+```
+index.html
+package.json
+vite.config.js
+README.md
+src/App.jsx
+src/main.jsx
+src/index.css
+```
+⚠️ The src/ files must be inside a folder called "src" in GitHub.
+
+---
+
+### PART 3 — Vercel (deploy + connect Supabase)
+
+**Step 5 — Import your repo to Vercel**
+Go to https://vercel.com → Add New Project → select your repo
+- Framework: **Vite**
+- Root Directory: **leave as ./**
+
+**Step 6 — Add your Supabase keys as Environment Variables**
+Before clicking Deploy, expand **Environment Variables** and add:
+
+| Name | Value |
+|------|-------|
+| `VITE_SUPABASE_URL` | your Project URL from Step 3 |
+| `VITE_SUPABASE_ANON_KEY` | your anon public key from Step 3 |
+
+**Step 7 — Deploy!**
+Click Deploy. In ~60 seconds your app is live at a URL like:
 **https://expense-tracker-yourname.vercel.app**
 
-Bookmark it — your data saves to your browser automatically!
-
 ---
 
-## 💾 How data is saved
-Your transactions are saved in your browser's **localStorage**. This means:
-- ✅ Data persists across browser sessions on the same device
-- ✅ Works offline
-- ⚠️ Clearing browser data / cookies will reset the app
-- ⚠️ Data is per-device (not shared across computers)
+## ✅ How it works
+- Anyone can go to your URL and **sign up** with email + password
+- Each person logs in and **only sees their own data**
+- All data is saved in Supabase (real cloud database)
+- Works on any device, any browser
 
----
-
-## 🛠 Run locally (optional)
-If you have Node.js installed:
-```bash
-npm install
-npm run dev
-```
-Then open http://localhost:5173
-
----
-
-## ✨ Features
-- Auto-categorizes expenses from description keywords
-- Income vs expense tracking
-- Live dashboard with donut chart + 7-day bar chart
-- Filter transactions by category
-- Montserrat font throughout
-- Fully responsive dark UI
+## 🔒 Security
+- Passwords are handled by Supabase Auth (never stored in plain text)
+- Row Level Security ensures users can ONLY access their own transactions
+- Your anon key is safe to use in frontend code
